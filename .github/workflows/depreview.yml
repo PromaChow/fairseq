@@ -2,7 +2,7 @@ name: Dependency Review
 on:
   push:
     branches:
-      - ma
+      - main
 
 jobs:
   dependency-review:
