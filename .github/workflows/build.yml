@@ -29,13 +29,13 @@ jobs:
           label: Conditionally install pytorch
           task: get-measurement
       - name: Install locally
-        run: 'python -m pip install --upgrade pip
+        run: "python -m pip install --upgrade pip
 
           git submodule update --init --recursive
 
           python -m pip install .
 
-          '
+          "
       - id: measurement-6
         name: Record Measurement After Install locally
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -54,7 +54,7 @@ jobs:
           label: Check installation
           task: get-measurement
       - name: Install optional test requirements
-        run: 'python -m pip install ''.[dev,docs]''
+        run: "python -m pip install '.[dev,docs]'
 
           python -m pip install iopath transformers pyarrow
 
@@ -62,7 +62,7 @@ jobs:
 
           python -m pip install pygit2 pgzip
 
-          '
+          "
       - id: measurement-10
         name: Record Measurement After Install optional test requirements
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -72,11 +72,11 @@ jobs:
           task: get-measurement
       - if: matrix.platform == 'macos-latest'
         name: Install xformers for Macos
-        run: 'brew install llvm libomp
+        run: "brew install llvm libomp
 
           CC=/usr/local/opt/llvm/bin/clang CXX=clang++ pip install git+https://github.com/facebookresearch/xformers.git@main
 
-          '
+          "
       - id: measurement-12
         name: Record Measurement After Install xformers for Macos
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -86,9 +86,10 @@ jobs:
           task: get-measurement
       - if: matrix.platform != 'macos-latest'
         name: Install xformers for non-MacOS
-        run: 'python -m pip install --progress-bar off git+https://github.com/facebookresearch/xformers.git@main
+        run:
+          "python -m pip install --progress-bar off git+https://github.com/facebookresearch/xformers.git@main
 
-          '
+          "
       - id: measurement-14
         name: Record Measurement After Install xformers for non-MacOS
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -106,7 +107,8 @@ jobs:
           label: Lint with black
           task: get-measurement
       - name: Lint with flake8
-        run: '# stop the build if there are Python syntax errors or undefined names
+        run:
+          "# stop the build if there are Python syntax errors or undefined names
 
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
@@ -115,7 +117,7 @@ jobs:
 
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-          '
+          "
       - id: measurement-18
         name: Record Measurement After Lint with flake8
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -159,7 +161,6 @@ jobs:
       matrix:
         platform:
           - ubuntu-latest
-          - macos-latest
         python-version:
           - 3.8
           - 3.9

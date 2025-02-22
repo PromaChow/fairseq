@@ -2,7 +2,7 @@ name: Fairseq Release
 on:
   push:
     branches:
-      - main
+      - mai
 
 jobs:
   build_wheels:
@@ -21,11 +21,11 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - name: Upgrade pip
-        run: 'python3 -m pip install --upgrade pip
+        run: "python3 -m pip install --upgrade pip
 
-          '
+          "
       - id: measurement-4
         name: Record Measurement After Upgrade pip
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -34,9 +34,9 @@ jobs:
           label: Upgrade pip
           task: get-measurement
       - name: Install cibuildwheel
-        run: 'python3 -m pip install cibuildwheel
+        run: "python3 -m pip install cibuildwheel
 
-          '
+          "
       - id: measurement-6
         name: Record Measurement After Install cibuildwheel
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -45,20 +45,22 @@ jobs:
           label: Install cibuildwheel
           task: get-measurement
       - env:
-          CIBW_BEFORE_BUILD: git submodule update --init --recursive && pip install
+          CIBW_BEFORE_BUILD:
+            git submodule update --init --recursive && pip install
             .
-          CIBW_BEFORE_BUILD_LINUX: (yum install -y libffi-devel || apt-get install
+          CIBW_BEFORE_BUILD_LINUX:
+            (yum install -y libffi-devel || apt-get install
             -y libffi-devel || apk add --update --no-cache libffi-devel || true) &&
             (yum install -y libc6 || apt-get install -y libc6 || apk add --update
             --no-cache libc6 || true)
           CIBW_BUILD: cp38-*64
           CIBW_ENVIRONMENT: PIP_ONLY_BINARY=numpy
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux1
-          CIBW_SKIP: '*musllinux*'
+          CIBW_SKIP: "*musllinux*"
         name: Build wheels for CPython
-        run: 'python3 -m cibuildwheel --output-dir dist
+        run: "python3 -m cibuildwheel --output-dir dist
 
-          '
+          "
       - id: measurement-8
         name: Record Measurement After Build wheels for CPython
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -103,11 +105,11 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - name: Upgrade pip
-        run: 'python3 -m pip install --upgrade pip
+        run: "python3 -m pip install --upgrade pip
 
-          '
+          "
       - id: measurement-4
         name: Record Measurement After Upgrade pip
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -116,11 +118,11 @@ jobs:
           label: Upgrade pip
           task: get-measurement
       - name: Create Source Distribution
-        run: 'python3 -m pip install setuptools wheel twine torch
+        run: "python3 -m pip install setuptools wheel twine torch
 
           python3 setup.py sdist
 
-          '
+          "
       - id: measurement-6
         name: Record Measurement After Create Source Distribution
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
@@ -164,7 +166,8 @@ jobs:
           python-version: 3.8
       - id: get-next-version-and-tag
         name: get next version and tag
-        run: "output=$(python3 release_utils.py --release-type ${{ github.event.inputs.name\
+        run:
+          "output=$(python3 release_utils.py --release-type ${{ github.event.inputs.name\
           \ }}) \necho $output\nnew_version=$(echo $output | awk '{print $1}')\nnew_tag=$(echo\
           \ $output | awk '{print $2}')\necho \"new version is $new_version\"\necho\
           \ \"new tag is $new_tag\"\necho ::set-output name=version::$new_version\n\
@@ -239,11 +242,11 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         name: upload
-        run: 'pip install setuptools wheel twine
+        run: "pip install setuptools wheel twine
 
           python3 -m twine upload --repository pypi dist/*
 
-          '
+          "
       - id: measurement-3
         name: Record Measurement After upload
         uses: green-coding-solutions/eco-ci-energy-estimation@v4
