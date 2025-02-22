@@ -1,161 +1,270 @@
 name: Fairseq Release
-
 on:
-  workflow_dispatch:
-    inputs:
-      name:
-        description: 'Release Type'
-        default: 'patch'
-        required: true
+  push:
+    branches:
+      - main
 
 jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    needs: get_next_version
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: start-measurement
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.get_next_version.outputs.branch_name }}
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: Upgrade pip
+        run: 'python3 -m pip install --upgrade pip
 
-  get_next_version:
+          '
+      - id: measurement-4
+        name: Record Measurement After Upgrade pip
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: Upgrade pip
+          task: get-measurement
+      - name: Install cibuildwheel
+        run: 'python3 -m pip install cibuildwheel
+
+          '
+      - id: measurement-6
+        name: Record Measurement After Install cibuildwheel
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: Install cibuildwheel
+          task: get-measurement
+      - env:
+          CIBW_BEFORE_BUILD: git submodule update --init --recursive && pip install
+            .
+          CIBW_BEFORE_BUILD_LINUX: (yum install -y libffi-devel || apt-get install
+            -y libffi-devel || apk add --update --no-cache libffi-devel || true) &&
+            (yum install -y libc6 || apt-get install -y libc6 || apk add --update
+            --no-cache libc6 || true)
+          CIBW_BUILD: cp38-*64
+          CIBW_ENVIRONMENT: PIP_ONLY_BINARY=numpy
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux1
+          CIBW_SKIP: '*musllinux*'
+        name: Build wheels for CPython
+        run: 'python3 -m cibuildwheel --output-dir dist
+
+          '
+      - id: measurement-8
+        name: Record Measurement After Build wheels for CPython
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: Build wheels for CPython
+          task: get-measurement
+      - uses: actions/upload-artifact@v2
+        with:
+          path: dist
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${ steps.final-measurement.outputs.data-total-json }' > total_energy_consumption-1740225204.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption-1740225204.json
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+  create_sdist:
+    name: Create Source Distribution
+    needs: get_next_version
     runs-on: ubuntu-latest
     steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: start-measurement
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.get_next_version.outputs.branch_name }}
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: Upgrade pip
+        run: 'python3 -m pip install --upgrade pip
+
+          '
+      - id: measurement-4
+        name: Record Measurement After Upgrade pip
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: Upgrade pip
+          task: get-measurement
+      - name: Create Source Distribution
+        run: 'python3 -m pip install setuptools wheel twine torch
+
+          python3 setup.py sdist
+
+          '
+      - id: measurement-6
+        name: Record Measurement After Create Source Distribution
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: Create Source Distribution
+          task: get-measurement
+      - uses: actions/upload-artifact@v2
+        with:
+          path: dist/*.tar.gz
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${ steps.final-measurement.outputs.data-total-json }' > total_energy_consumption-1740225204.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption-1740225204.json
+  get_next_version:
+    outputs:
+      branch_name: ${{ steps.get-next-version-and-tag.outputs.branch_name }}
+      new_tag: ${{ steps.get-next-version-and-tag.outputs.tag }}
+      new_version: ${{ steps.get-next-version-and-tag.outputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: start-measurement
       - name: checkout-repo-content
         uses: actions/checkout@v2
-
       - name: setup-python
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
+      - id: get-next-version-and-tag
+        name: get next version and tag
+        run: "output=$(python3 release_utils.py --release-type ${{ github.event.inputs.name\
+          \ }}) \necho $output\nnew_version=$(echo $output | awk '{print $1}')\nnew_tag=$(echo\
+          \ $output | awk '{print $2}')\necho \"new version is $new_version\"\necho\
+          \ \"new tag is $new_tag\"\necho ::set-output name=version::$new_version\n\
+          echo ::set-output name=tag::$new_tag\necho ::set-output name=branch_name::$new_version-release\n\
+          echo \"NEW_TAG=$new_tag\" >> $GITHUB_ENV\necho \"NEW_BRANCH=$new_version-release\"\
+          \ >> $GITHUB_ENV\n"
+      - id: measurement-4
+        name: Record Measurement After get next version and tag
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: get next version and tag
+          task: get-measurement
+      - id: update-version
+        name: update version
+        run: 'echo "current folder = $PWD"
 
-      - name: get next version and tag
-        id: get-next-version-and-tag
-        run: |
-          output=$(python3 release_utils.py --release-type ${{ github.event.inputs.name }}) 
-          echo $output
-          new_version=$(echo $output | awk '{print $1}')
-          new_tag=$(echo $output | awk '{print $2}')
-          echo "new version is $new_version"
-          echo "new tag is $new_tag"
-          echo ::set-output name=version::$new_version
-          echo ::set-output name=tag::$new_tag
-          echo ::set-output name=branch_name::$new_version-release
-          echo "NEW_TAG=$new_tag" >> $GITHUB_ENV
-          echo "NEW_BRANCH=$new_version-release" >> $GITHUB_ENV
-
-
-      # update the version number in version.txt
-      - name: update version
-        id: update-version
-        run : |
-          echo "current folder = $PWD"
           echo "current branch = $(git branch --show-current)"
-          output=$(python3 release_utils.py --release-type ${{ github.event.inputs.name }} --update-version)
 
+          output=$(python3 release_utils.py --release-type ${{ github.event.inputs.name
+          }} --update-version)
+
+          '
+      - id: measurement-6
+        name: Record Measurement After update version
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: update version
+          task: get-measurement
       - name: add and commit
         uses: EndBug/add-and-commit@v9
         with:
-          author_name: ${{ secrets.AUTHOR_NAME }}
           author_email: ${{ secrets.AUTHOR_EMAIL }}
-
-          # TODO: change this to main once shipit is disabled.
-          new_branch: '${{ env.NEW_BRANCH }}'
+          author_name: ${{ secrets.AUTHOR_NAME }}
           default_author: github_actor
-          message: '${{ env.NEW_TAG }} release'
+          message: ${{ env.NEW_TAG }} release
+          new_branch: ${{ env.NEW_BRANCH }}
           pathspec_error_handling: exitAtEnd
-
-          # Arguments for the git pull command. Use NO-PULL to avoid the action pulling at all.
-          # pull: 'NO-PULL'
-          tag: '${{ env.NEW_TAG }}'
-
-    outputs:
-      new_version: ${{ steps.get-next-version-and-tag.outputs.version }}
-      new_tag: ${{ steps.get-next-version-and-tag.outputs.tag }}
-      branch_name: ${{ steps.get-next-version-and-tag.outputs.branch_name }}
-
-  create_sdist:
-    runs-on: ubuntu-latest
-    name: Create Source Distribution
-    needs: get_next_version
-    steps:
-      - uses: actions/checkout@v3
+          tag: ${{ env.NEW_TAG }}
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
         with:
-          ref: ${{ needs.get_next_version.outputs.branch_name }}
-
-      - name: Install Python
-        uses: actions/setup-python@v2
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${ steps.final-measurement.outputs.data-total-json }' > total_energy_consumption-1740225204.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
         with:
-          python-version: '3.8'
-
-      - name: Upgrade pip
-        run: |
-          python3 -m pip install --upgrade pip
-
-      - name: Create Source Distribution
-        run: |
-          python3 -m pip install setuptools wheel twine torch
-          python3 setup.py sdist
- 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: dist/*.tar.gz
-
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs: get_next_version
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.get_next_version.outputs.branch_name }}
-
-      - name: Install Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-
-      - name: Upgrade pip
-        run: |
-          python3 -m pip install --upgrade pip
-
-      - name: Install cibuildwheel
-        run: |
-          python3 -m pip install cibuildwheel
-
-      - name: Build wheels for CPython
-        run: |
-          python3 -m cibuildwheel --output-dir dist
-        env:
-          CIBW_BUILD: "cp38-*64"
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux1
-          CIBW_BEFORE_BUILD: git submodule update --init --recursive && pip install .
-          # Install system library
-          CIBW_BEFORE_BUILD_LINUX: (yum install -y libffi-devel || apt-get install -y libffi-devel || apk add --update --no-cache libffi-devel || true) && (yum install -y libc6 || apt-get install -y libc6 || apk add --update --no-cache libc6 || true)
-          CIBW_ENVIRONMENT: "PIP_ONLY_BINARY=numpy"
-          CIBW_SKIP: "*musllinux*"
-
-      - uses: actions/upload-artifact@v2
-        with:
-          path: dist
-
+          name: total-energy-consumption
+          path: total_energy_consumption-1740225204.json
   upload:
     name: Upload to PyPi and create release
+    needs:
+      - build_wheels
+      - create_sdist
+      - get_next_version
     runs-on: ubuntu-latest
-    needs: [build_wheels, create_sdist, get_next_version]
     steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: start-measurement
       - uses: actions/download-artifact@v2
         with:
           name: artifact
           path: dist
-
-      # build the PyPI package and upload it
-      - name: upload
-        env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+      - env:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          pip install setuptools wheel twine
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        name: upload
+        run: 'pip install setuptools wheel twine
+
           python3 -m twine upload --repository pypi dist/*
 
-      # create the release on github
+          '
+      - id: measurement-3
+        name: Record Measurement After upload
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          label: upload
+          task: get-measurement
       - name: create release on github
         uses: ncipollo/release-action@v1
         with:
-          tag: '${{ needs.get_next_version.outputs.new_tag }}'
+          tag: ${{ needs.get_next_version.outputs.new_tag }}
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${ steps.final-measurement.outputs.data-total-json }' > total_energy_consumption-1740225204.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption-1740225204.json
